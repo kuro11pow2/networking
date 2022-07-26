@@ -43,12 +43,12 @@ namespace Client
             _state = TcpClientState.CONNECTED;
         }
 
-        public async Task Start()
+        public async Task StartAsync()
         {
             await ConnectAsync();
         }
 
-        public async Task Stop()
+        public async Task StopAsync()
         {
             await DisconnectAsync();
         }

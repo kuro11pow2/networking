@@ -8,13 +8,13 @@ Log.Print("시작");
 
 string address = "127.0.0.1";
 int port = 12345;
-TcpClient tc = new TcpClient(address, port);
+TcpClient tc = new(address, port);
 
 while (true)
 {
     try
     {
-        await tc.Start();
+        await tc.StartAsync();
         _ = Task.Run(async () =>
         {
             while (true)
@@ -36,10 +36,16 @@ while (true)
 while (true)
 {
     string? s = Console.ReadLine();
-
-    await tc.SendAsync(s);
+    try
+    {
+        await tc.SendAsync(s ?? "");
+    }
+    catch
+    {
+        break;
+    }
 }
 
-await tc.Stop();
+await tc.StopAsync();
 
 Log.Print("끝");

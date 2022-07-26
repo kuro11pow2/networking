@@ -50,7 +50,7 @@ namespace Server
                     Socket sock = await _socket.AcceptAsync();
                     TcpClient client = new TcpClient(sock);
                     await AddClientAsync(client);
-                    await client.Start();
+                    await client.StartAsync();
                     StartReceive(client);
                 }
             });
@@ -79,7 +79,7 @@ namespace Server
                     }
                 }
                 await RemoveClientAsync(client);
-                await client.Stop();
+                await client.StopAsync();
             });
         }
 
