@@ -13,7 +13,7 @@ namespace Server
     using Common;
     using Client;
 
-    internal class TcpServer
+    public class TcpServer
     {
         private Socket _socket;
         private IPEndPoint _ipEndPoint;
