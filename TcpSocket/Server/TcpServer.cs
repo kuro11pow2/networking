@@ -12,12 +12,22 @@ namespace Server
 {
     using Common;
     using Client;
+    internal enum TcpServerState
+    {
+        INIT,
+        CREATED,
+        STARTED,
+        STOPPED,
+        ERROR
+    }
 
     public class TcpServer
     {
         private Socket _socket;
         private IPEndPoint _ipEndPoint;
         private ConcurrentDictionary<int, TcpClient> _clients;
+        private TcpServerState _state;
+
         private readonly AsyncLock _mutex = new AsyncLock();
         private int _autoIncrementCid;
 
@@ -27,12 +37,51 @@ namespace Server
             _ipEndPoint = new IPEndPoint(IPAddress.Any, port);
             _socket.AddressFamily.ToString();
             _clients = new ConcurrentDictionary<int, TcpClient>();
+            _state = TcpServerState.CREATED;
         }
 
         public void Start()
         {
-            ReadyAccept();
-            StartAccept();
+            if (!(_state == TcpServerState.CREATED || _state == TcpServerState.STOPPED))
+                return;
+            using (_mutex.Lock())
+            {
+                if (!(_state == TcpServerState.CREATED || _state == TcpServerState.STOPPED))
+                    return;
+                ReadyAccept();
+                StartAccept();
+                _state = TcpServerState.STARTED;
+            }
+        }
+
+        public void Stop()
+        {
+            if (_state != TcpServerState.STARTED)
+                return;
+            using (_mutex.Lock())
+            {
+                if (_state != TcpServerState.STARTED)
+                    return;
+
+                foreach (var client in _clients.Values)
+                {
+                    RemoveClient(client);
+                    client.Stop();
+                }
+
+                try
+                {
+                    _socket.Shutdown(SocketShutdown.Both);
+                }
+                catch { }
+                try
+                {
+                    _socket.Close();
+                }
+                catch { }
+
+                _state = TcpServerState.STOPPED;
+            }
         }
 
         private void ReadyAccept()
@@ -78,8 +127,8 @@ namespace Server
                         _ = dstClient.SendAsync($"from: {client.Cid}, {receiveMsg}");
                     }
                 }
-                await RemoveClientAsync(client);
-                await client.StopAsync();
+                RemoveClient(client);
+                client.Stop();
             });
         }
 
@@ -98,19 +147,17 @@ namespace Server
                 Log.Print($"동일한 cid가 존재함 {client.Cid}", context: nameof(AddClientAsync));
         }
 
-        private async Task RemoveClientAsync(TcpClient client)
+        private void RemoveClient(TcpClient client)
         {
             bool res;
-            using (await _mutex.LockAsync())
-            {
-                int cid = client.Cid;
-                TcpClient? removed;
-                res = _clients.TryRemove(cid, out removed);
-            }
+            int cid = client.Cid;
+            TcpClient? removed;
+            res = _clients.TryRemove(cid, out removed);
+
             if (res)
-                Log.Print($"제거됨 {client.Cid}", context: nameof(RemoveClientAsync));
+                Log.Print($"제거됨 {client.Cid}", context: nameof(RemoveClient));
             else
-                Log.Print($"이미 제거되거나 존재하지 않음 {client.Cid}", context: nameof(RemoveClientAsync));
+                Log.Print($"이미 제거되거나 존재하지 않음 {client.Cid}", context: nameof(RemoveClient));
         }
     }
 }

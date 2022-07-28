@@ -4,6 +4,8 @@ namespace Tests
     {
         [Theory]
         [InlineData(@"abcxyz", @"abcxyz")]
+        [InlineData(@"1234567890", @"1234567890")]
+
         public async Task Test1(string input, string expected)
         {
             string address = "127.0.0.1";
@@ -20,8 +22,10 @@ namespace Tests
 
             Assert.Equal(actual, $"from: {tc.Cid}, {expected}");
 
+            tc.Stop();
+
             // ts.StartMonitor();
-            // ts.Stop();
+            ts.Stop();
         }
     }
 }

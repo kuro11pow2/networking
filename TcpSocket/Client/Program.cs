@@ -46,6 +46,6 @@ while (true)
     }
 }
 
-await tc.StopAsync();
+tc.Stop();
 
 Log.Print("끝");

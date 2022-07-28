@@ -48,9 +48,9 @@ namespace Client
             await ConnectAsync();
         }
 
-        public async Task StopAsync()
+        public void Stop()
         {
-            await DisconnectAsync();
+            Disconnect();
         }
 
         public async Task<int> SendAsync(string msg)
@@ -70,27 +70,36 @@ namespace Client
 
         private async Task ConnectAsync()
         {
-            if (_state != TcpClientState.CREATED)
+            if (!(_state == TcpClientState.CREATED || _state == TcpClientState.DISCONNECTED))
                 return;
             using (await _mutex.LockAsync())
             {
-                if (_state != TcpClientState.CREATED)
+                if (!(_state == TcpClientState.CREATED || _state == TcpClientState.DISCONNECTED))
                     return;
                 await _socket.ConnectAsync(_ipEndPoint);
                 _state = TcpClientState.CONNECTED;
             }
         }
 
-        private async Task DisconnectAsync()
+        private void Disconnect()
         {
             if (_state != TcpClientState.CONNECTED)
                 return;
-            using (await _mutex.LockAsync())
+            using (_mutex.Lock())
             {
                 if (_state != TcpClientState.CONNECTED)
                     return;
-                _socket.Shutdown(SocketShutdown.Both);
-                _socket.Close();
+                try
+                {
+                    _socket.Shutdown(SocketShutdown.Both);
+                }
+                catch { }
+                try
+                {
+                    _socket.Close(0);
+                }
+                catch { }
+                
                 _state = TcpClientState.DISCONNECTED;
             }
         }
