@@ -6,9 +6,9 @@ Log.PrintHeader();
 
 Log.Print("시작");
 
-TcpServer ts = new TcpServer(12345);
+KpServer ks = new KpServer(12345);
 
-ts.Start();
+ks.Start();
 
 await Task.Delay(1000000);
 

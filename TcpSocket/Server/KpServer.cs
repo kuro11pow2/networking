@@ -18,25 +18,26 @@ namespace Server
         CREATED,
         STARTED,
         STOPPED,
-        ERROR
     }
 
-    public class TcpServer
+    public class KpServer
     {
         private Socket _socket;
         private IPEndPoint _ipEndPoint;
-        private ConcurrentDictionary<int, TcpClient> _clients;
+        private ConcurrentDictionary<int, KpClient> _clients;
         private TcpServerState _state;
 
         private readonly AsyncLock _mutex = new AsyncLock();
         private int _autoIncrementCid;
 
-        public TcpServer(int port)
+        public int ClientCount { get { return _clients.Count; } }
+
+        public KpServer(int port)
         {
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             _ipEndPoint = new IPEndPoint(IPAddress.Any, port);
             _socket.AddressFamily.ToString();
-            _clients = new ConcurrentDictionary<int, TcpClient>();
+            _clients = new ConcurrentDictionary<int, KpClient>();
             _state = TcpServerState.CREATED;
         }
 
@@ -69,16 +70,8 @@ namespace Server
                     client.Stop();
                 }
 
-                try
-                {
-                    _socket.Shutdown(SocketShutdown.Both);
-                }
-                catch { }
-                try
-                {
-                    _socket.Close();
-                }
-                catch { }
+                try { _socket.Shutdown(SocketShutdown.Both); } catch { }
+                try { _socket.Close(0); } catch { }
 
                 _state = TcpServerState.STOPPED;
             }
@@ -97,7 +90,7 @@ namespace Server
                 while (true)
                 {
                     Socket sock = await _socket.AcceptAsync();
-                    TcpClient client = new TcpClient(sock);
+                    KpClient client = new KpClient(sock);
                     await AddClientAsync(client);
                     await client.StartAsync();
                     StartReceive(client);
@@ -105,59 +98,72 @@ namespace Server
             });
         }
 
-        private void StartReceive(TcpClient client)
+        private void StartReceive(KpClient client)
         {
             Task.Run(async () =>
             {
+                KpClient _client = client;
                 while (true)
                 {
-                    string receiveMsg;
+                    Message receiveMsg;
                     try
                     {
-                        receiveMsg = await client.ReceiveAsync();
+                        receiveMsg = await _client.ReceiveAsync();
                     }
                     catch
                     {
                         break;
                     }
-                    Log.Print($"from: {client.Cid}, receiveMsg: {receiveMsg}", context: nameof(StartReceive));
+                    Log.Print($"{_client.Cid}=>all, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
 
                     foreach (var dstClient in _clients.Values)
                     {
-                        _ = dstClient.SendAsync($"from: {client.Cid}, {receiveMsg}");
+                        Log.Print($"{_client.Cid}=>{dstClient.Cid}, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
+
+                        _ = dstClient.SendAsync(receiveMsg);
                     }
                 }
-                RemoveClient(client);
-                client.Stop();
+                RemoveClient(_client);
+                _client.Stop();
             });
         }
 
-        private async Task AddClientAsync(TcpClient client)
+        private async Task AddClientAsync(KpClient client)
         {
             bool res;
+            
             using (await _mutex.LockAsync())
             {
-                client.Cid = _autoIncrementCid;
-                res = _clients.TryAdd(client.Cid, client);
-                _autoIncrementCid++;
+                client.Cid = _autoIncrementCid++;
             }
+            res = _clients.TryAdd(client.Cid, client);
+
             if (res)
-                Log.Print($"추가됨 {client.Cid}", context: nameof(AddClientAsync));
+                Log.Print($"추가됨 {client.Cid}", context: $"{nameof(KpServer)}-{nameof(AddClientAsync)}");
             else
-                Log.Print($"동일한 cid가 존재함 {client.Cid}", context: nameof(AddClientAsync));
+                Log.Print($"동일한 cid가 존재함 {client.Cid}", context: $"{nameof(KpServer)}-{nameof(AddClientAsync)}");
         }
 
-        private void RemoveClient(TcpClient client)
+        private void RemoveClient(KpClient client)
         {
             bool res;
             int cid = client.Cid;
-            TcpClient? removed;
+            KpClient? removed;
             res = _clients.TryRemove(cid, out removed);
 
             if (res)
-                Log.Print($"제거됨 {client.Cid}", context: nameof(RemoveClient));
+                Log.Print($"제거됨 {client.Cid}", context: $"{nameof(KpServer)}-{nameof(RemoveClient)}");
             else
-                Log.Print($"이미 제거되거나 존재하지 않음 {client.Cid}", context: nameof(RemoveClient));
+                Log.Print($"이미 제거되거나 존재하지 않음 {client.Cid}", context: $"{nameof(KpServer)}-{nameof(RemoveClient)}");
+        }
+
+        public async Task StartMonitorAsync()
+        {
+            while (_state == TcpServerState.STARTED)
+            {
+                Log.Print($"count: {_clients.Count}, acc count: {_autoIncrementCid}", LogLevel.RETURN, "server monitor");
+                await Task.Delay(5000);
+            }
         }
     }
 }

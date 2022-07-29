@@ -8,19 +8,19 @@ Log.Print("시작");
 
 string address = "127.0.0.1";
 int port = 12345;
-TcpClient tc = new(address, port);
+KpClient kc = new(address, port);
 
 while (true)
 {
     try
     {
-        await tc.StartAsync();
+        await kc.StartAsync();
         _ = Task.Run(async () =>
         {
             while (true)
             {
-                string receiveMsg = await tc.ReceiveAsync();
-                Log.Print($"receiveMsg: {receiveMsg}", context: "client");
+                Message receiveMsg = await kc.ReceiveAsync();
+                Log.Print($"{receiveMsg}", context: "client");
             }
         });
         break;
@@ -35,10 +35,11 @@ while (true)
 
 while (true)
 {
-    string? s = Console.ReadLine();
+    string s = Console.ReadLine() ?? "";
+    var msg = new Message(s);
     try
     {
-        await tc.SendAsync(s ?? "");
+        await kc.SendAsync(msg);
     }
     catch
     {
@@ -46,6 +47,6 @@ while (true)
     }
 }
 
-tc.Stop();
+kc.Stop();
 
 Log.Print("끝");
