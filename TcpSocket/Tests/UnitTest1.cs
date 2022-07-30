@@ -21,7 +21,7 @@
 
             var msg = new Message(input);
 
-            int count = 200;
+            int count = 100;
             List<KpClient> clients = new List<KpClient>();
 
             for (int i = 0; i < count; i++)
@@ -33,44 +33,31 @@
             }
 
             while (ks.ClientCount < count)
+            {
                 await Task.Delay(1);
-            
+            }
 
             for (int i = 0; i < count; i++)
             {
                 _ = clients[i].SendAsync(msg);
             }
 
-            //int passedCount = 0;
-            //int totalReceivedMsgLength = 0;
-            List<Message>[] messages = new List<Message>[count];
-            for (int i = 0; i < count; i++)
-                messages[i] = new List<Message>();
-
-            List<Task> tasks = new List<Task>();
+            int passedCount = 0;
+            int totalReceivedMsgLength = 0;
             for (int i = 0; i < count; i++)
             {
-                int cid = i;
-                Task t = Task.Run(async () =>
+                for (int j = 0; j < count; j++)
                 {
-                    for (int _ = 0; _ < count; _++)
-                    {
-                        var actual = await clients[cid].ReceiveAsync();
-                        messages[cid].Add(actual);
-                    }
-                });
-                tasks.Add(t);
+                    var actual = await clients[j].ReceiveAsync();
+                    if (expected != actual.Msg)
+                        Assert.True(false, $"i={i}, j={j}, expected={expected}, actual={actual.Msg}, passedCount={passedCount}, totalReceivedMsgLength={totalReceivedMsgLength}");
+                    passedCount++;
+                    totalReceivedMsgLength += actual.Msg.Length;
+                }
             }
 
-            await Task.WhenAll(tasks);
-
             for (int i = 0; i < count; i++)
             {
-                foreach (Message actual in messages[i])
-                {
-                    if (expected != actual.Msg)
-                        Assert.True(false, $"i={i}, expected={expected}, actual={actual.Msg}");
-                }
                 clients[i].Stop();
             }
 
