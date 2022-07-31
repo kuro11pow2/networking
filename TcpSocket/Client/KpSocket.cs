@@ -15,7 +15,7 @@ using Nito.AsyncEx;
 
 namespace Client
 {
-    public enum TcpClientState
+    public enum KpSocketState
     {
         INIT,
         CREATED,
@@ -29,25 +29,24 @@ namespace Client
         RELIABLE,
     }
 
-    public class KpClientOption
+    public class KpSocketOption
     {
         public ReliableLevel Level { get; set; }
-        public KpClientOption(ReliableLevel level = ReliableLevel.UNRELIABLE)
+        public KpSocketOption(ReliableLevel level = ReliableLevel.UNRELIABLE)
         {
             Level = level;
         }
     }
 
-    public class KpClient
+    public class KpSocket
     {
         private readonly Socket _socket;
         private readonly IPEndPoint _ipEndPoint;
-        private readonly KpClientOption _option;
-        private TcpClientState _state;
+        protected KpSocketState _state;
 
         private readonly AsyncLock _mutex = new ();
 
-        public int Cid { get; set; }
+        public int Id { get; set; }
 
         private NetworkStream? _stream;
         private NetworkStream Stream 
@@ -61,41 +60,39 @@ namespace Client
             set {  _stream = value; } 
         }
 
-        public KpClient(string address, int port, KpClientOption? option=null)
+        public KpSocket(string address, int port)
         {
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             _ipEndPoint = new IPEndPoint(IPAddress.Parse(address), port);
-            _state = TcpClientState.CREATED;
-            _option = option ?? new KpClientOption();
+            _state = KpSocketState.CREATED;
         }
 
-        public KpClient(Socket connectedSocket, KpClientOption? option = null)
+        public KpSocket(Socket connectedSocket)
         {
             _socket = connectedSocket;
             if (connectedSocket.RemoteEndPoint == null)
                 throw new Exception("_socket.RemoteEndPoint is null");
             _ipEndPoint = (IPEndPoint)connectedSocket.RemoteEndPoint;
-            _state = TcpClientState.CONNECTED;
-            _option = option ?? new KpClientOption();
+            _state = KpSocketState.CONNECTED;
         }
 
-        public async Task StartAsync()
+        public virtual async Task StartAsync()
         {
             await ConnectAsync();
         }
 
-        public void Stop()
+        public virtual void Stop()
         {
             Disconnect();
         }
 
-        public async Task SendAsync(Message msg)
+        public virtual async Task SendAsync(Message msg)
         {
             await Stream.WriteAsync(msg.FullBytes);
-            Log.Print(msg.ToString(), LogLevel.INFO, context: $"{nameof(KpClient)}{Cid}-{nameof(SendAsync)}");
+            Log.Print(msg.ToString(), LogLevel.INFO, context: $"{nameof(KpSocket)}{Id}-{nameof(SendAsync)}");
         }
 
-        public async Task<Message> ReceiveAsync()
+        public virtual async Task<Message> ReceiveAsync()
         {
             byte[] buffer = ArrayPool<byte>.Shared.Rent(8192);
             await ReadStreamAsync(buffer, 0, Message.HEADER_BYTES_LENGTH);
@@ -104,7 +101,7 @@ namespace Client
 
             var msg = new Message(buffer, Message.HEADER_BYTES_LENGTH + expectedBytesLength);
             ArrayPool<byte>.Shared.Return(buffer);
-            Log.Print(msg.ToString(), LogLevel.INFO, context: $"{nameof(KpClient)}{Cid}-{nameof(ReceiveAsync)}");
+            Log.Print(msg.ToString(), LogLevel.INFO, context: $"{nameof(KpSocket)}{Id}-{nameof(ReceiveAsync)}");
 
             return msg;
         }
@@ -142,30 +139,30 @@ namespace Client
 
         private async Task ConnectAsync()
         {
-            if (!(_state == TcpClientState.CREATED || _state == TcpClientState.DISCONNECTED))
+            if (!(_state == KpSocketState.CREATED || _state == KpSocketState.DISCONNECTED))
                 return;
             using (await _mutex.LockAsync())
             {
-                if (!(_state == TcpClientState.CREATED || _state == TcpClientState.DISCONNECTED))
+                if (!(_state == KpSocketState.CREATED || _state == KpSocketState.DISCONNECTED))
                     return;
                 await _socket.ConnectAsync(_ipEndPoint);
 
-                _state = TcpClientState.CONNECTED;
+                _state = KpSocketState.CONNECTED;
             }
         }
 
         private void Disconnect()
         {
-            if (_state != TcpClientState.CONNECTED)
+            if (_state != KpSocketState.CONNECTED)
                 return;
             using (_mutex.Lock())
             {
-                if (_state != TcpClientState.CONNECTED)
+                if (_state != KpSocketState.CONNECTED)
                     return;
                 try { _socket.Shutdown(SocketShutdown.Both); _socket.Close(0); } catch { }
                 try { Stream.Close(0); _stream = null; } catch { }
 
-                _state = TcpClientState.DISCONNECTED;
+                _state = KpSocketState.DISCONNECTED;
             }
         }
 

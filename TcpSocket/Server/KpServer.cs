@@ -22,22 +22,22 @@ namespace Server
 
     public class KpServer
     {
-        private Socket _socket;
+        private Socket _listenSock;
         private IPEndPoint _ipEndPoint;
-        private ConcurrentDictionary<int, KpClient> _clients;
+        private ConcurrentDictionary<int, KpSocket> _kpSocks;
         private TcpServerState _state;
 
         private readonly AsyncLock _mutex = new AsyncLock();
         private int _autoIncrementCid;
 
-        public int ClientCount { get { return _clients.Count; } }
+        public int ClientCount { get { return _kpSocks.Count; } }
 
         public KpServer(int port)
         {
-            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            _listenSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             _ipEndPoint = new IPEndPoint(IPAddress.Any, port);
-            _socket.AddressFamily.ToString();
-            _clients = new ConcurrentDictionary<int, KpClient>();
+            _listenSock.AddressFamily.ToString();
+            _kpSocks = new ConcurrentDictionary<int, KpSocket>();
             _state = TcpServerState.CREATED;
         }
 
@@ -64,14 +64,14 @@ namespace Server
                 if (_state != TcpServerState.STARTED)
                     return;
 
-                foreach (var client in _clients.Values)
+                foreach (var client in _kpSocks.Values)
                 {
-                    RemoveClient(client);
+                    RemoveSocket(client);
                     client.Stop();
                 }
 
-                try { _socket.Shutdown(SocketShutdown.Both); } catch { }
-                try { _socket.Close(0); } catch { }
+                try { _listenSock.Shutdown(SocketShutdown.Both); } catch { }
+                try { _listenSock.Close(0); } catch { }
 
                 _state = TcpServerState.STOPPED;
             }
@@ -79,8 +79,8 @@ namespace Server
 
         private void ReadyAccept()
         {
-            _socket.Bind(_ipEndPoint);
-            _socket.Listen();
+            _listenSock.Bind(_ipEndPoint);
+            _listenSock.Listen();
         }
 
         private void StartAccept()
@@ -89,79 +89,84 @@ namespace Server
             {
                 while (true)
                 {
-                    Socket sock = await _socket.AcceptAsync();
-                    KpClient client = new KpClient(sock);
-                    await AddClientAsync(client);
-                    await client.StartAsync();
-                    StartReceive(client);
+                    Socket sock = await _listenSock.AcceptAsync();
+                    KpSocket kpSock = GetSocket(sock);
+                    await AddSocketAsync(kpSock);
+                    await kpSock.StartAsync();
+                    StartReceive(kpSock);
                 }
             });
         }
 
-        private void StartReceive(KpClient client)
+        protected virtual KpSocket GetSocket(Socket socket)
+        {
+            return new KpSocket(socket);
+        }
+
+        protected virtual void StartReceive(KpSocket socket)
         {
             Task.Run(async () =>
             {
-                KpClient _client = client;
+                KpSocket _socket = socket;
                 while (true)
                 {
                     Message receiveMsg;
                     try
                     {
-                        receiveMsg = await _client.ReceiveAsync();
+                        receiveMsg = await _socket.ReceiveAsync();
                     }
                     catch
                     {
                         break;
                     }
-                    Log.Print($"{_client.Cid}=>all, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
+                    Log.Print($"{_socket.Id}=>all, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
 
-                    foreach (var dstClient in _clients.Values)
+                    foreach (var dstSock in _kpSocks.Values)
                     {
-                        Log.Print($"{_client.Cid}=>{dstClient.Cid}, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
+                        Log.Print($"{_socket.Id}=>{dstSock.Id}, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
 
-                        _ = dstClient.SendAsync(receiveMsg);
+                        _ = dstSock.SendAsync(receiveMsg);
                     }
                 }
-                RemoveClient(_client);
-                _client.Stop();
+                RemoveSocket(_socket);
+                _socket.Stop();
             });
         }
 
-        private async Task AddClientAsync(KpClient client)
+        private async Task AddSocketAsync(KpSocket socket)
         {
             bool res;
             
             using (await _mutex.LockAsync())
             {
-                client.Cid = _autoIncrementCid++;
+                socket.Id = _autoIncrementCid++;
             }
-            res = _clients.TryAdd(client.Cid, client);
+            res = _kpSocks.TryAdd(socket.Id, socket);
 
             if (res)
-                Log.Print($"추가됨 {client.Cid}", context: $"{nameof(KpServer)}-{nameof(AddClientAsync)}");
+                Log.Print($"추가됨 {socket.Id}", context: $"{nameof(KpServer)}-{nameof(AddSocketAsync)}");
             else
-                Log.Print($"동일한 cid가 존재함 {client.Cid}", context: $"{nameof(KpServer)}-{nameof(AddClientAsync)}");
+                Log.Print($"동일한 cid가 존재함 {socket.Id}", context: $"{nameof(KpServer)}-{nameof(AddSocketAsync)}");
         }
 
-        private void RemoveClient(KpClient client)
+        protected void RemoveSocket(KpSocket socket)
         {
             bool res;
-            int cid = client.Cid;
-            KpClient? removed;
-            res = _clients.TryRemove(cid, out removed);
+            int cid = socket.Id;
+            KpSocket? removed;
+            res = _kpSocks.TryRemove(cid, out removed);
 
             if (res)
-                Log.Print($"제거됨 {client.Cid}", context: $"{nameof(KpServer)}-{nameof(RemoveClient)}");
+                Log.Print($"제거됨 {socket.Id}", context: $"{nameof(KpServer)}-{nameof(RemoveSocket)}");
             else
-                Log.Print($"이미 제거되거나 존재하지 않음 {client.Cid}", context: $"{nameof(KpServer)}-{nameof(RemoveClient)}");
+                Log.Print($"이미 제거되거나 존재하지 않음 {socket.Id}", context: $"{nameof(KpServer)}-{nameof(RemoveSocket)}");
         }
 
         public async Task StartMonitorAsync()
         {
             while (_state == TcpServerState.STARTED)
             {
-                Log.Print($"count: {_clients.Count}, acc count: {_autoIncrementCid}", LogLevel.RETURN, "server monitor");
+                Log.Print($"count: {_kpSocks.Count}, acc count: {_autoIncrementCid}", LogLevel.RETURN, "server monitor");
                 await Task.Delay(5000);
             }
         }
