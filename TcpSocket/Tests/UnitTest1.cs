@@ -87,14 +87,14 @@
             ReliableKpServer server = new ReliableKpServer(port);
             server.Start();
 
-            int count = 10;
-            List<ReliableKpClient> sockets = new List<ReliableKpClient>();
+            int count = 20;
+            List<ReliableKpClient> clients = new List<ReliableKpClient>();
 
             for (int i = 0; i < count; i++)
             {
-                ReliableKpClient socket = new ReliableKpClient(address, port);
-                _ = socket.StartAsync();
-                sockets.Add(socket);
+                ReliableKpClient client = new ReliableKpClient(address, port);
+                _ = client.StartAsync();
+                clients.Add(client);
             }
 
             while (server.ClientCount < count)
@@ -104,26 +104,32 @@
 
             for (int i = 0; i < count; i++)
             {
-                _ = sockets[i].BroadcastAsync(input);
+                _ = clients[i].BroadcastAsync(input);
             }
 
-            int passedCount = 0;
-            int totalReceivedMsgLength = 0;
+            List<Task> tasks = new();
+
             for (int i = 0; i < count; i++)
             {
-                for (int j = 0; j < count; j++)
+                int idx = i;
+                Task t = Task.Run(async () =>
                 {
-                    ReliableMessage actual = await sockets[j].ReceiveAsync();
-                    if (expected != actual.Content)
-                        Assert.True(false, $"i={i}, j={j}, expected={expected}, actual={actual.Content}, passedCount={passedCount}, totalReceivedMsgLength={totalReceivedMsgLength}");
-                    passedCount++;
-                    totalReceivedMsgLength += actual.Content.Length;
-                }
+                    for (int j = 0; j < count; j++)
+                    {
+                        ReliableMessage actual = await clients[idx].ReceiveAsync();
+                        if (expected != actual.Content)
+                            Assert.True(false, $"i={idx}, j={j}, expected={expected}, actual={actual.Content}");
+                    }
+                });
+
+                tasks.Add(t);
             }
+
+            await Task.WhenAll(tasks);
 
             for (int i = 0; i < count; i++)
             {
-                sockets[i].Stop();
+                clients[i].Stop();
             }
 
             while (server.ClientCount > 0)
