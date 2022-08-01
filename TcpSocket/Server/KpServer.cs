@@ -24,7 +24,7 @@ namespace Server
     {
         private Socket _listenSock;
         private IPEndPoint _ipEndPoint;
-        private ConcurrentDictionary<int, KpSocket> _kpSocks;
+        protected ConcurrentDictionary<int, KpSocket> _kpSocks;
         private TcpServerState _state;
 
         private readonly AsyncLock _mutex = new AsyncLock();
@@ -103,33 +103,33 @@ namespace Server
             return new KpSocket(socket);
         }
 
-        protected virtual void StartReceive(KpSocket socket)
+        protected virtual void StartReceive(KpSocket _socket)
         {
             Task.Run(async () =>
             {
-                KpSocket _socket = socket;
+                KpSocket socket = _socket;
                 while (true)
                 {
                     Message receiveMsg;
                     try
                     {
-                        receiveMsg = await _socket.ReceiveAsync();
+                        receiveMsg = await socket.ReceiveAsync();
                     }
                     catch
                     {
                         break;
                     }
-                    Log.Print($"{_socket.Id}=>all, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
+                    Log.Print($"{socket.Id}=>all, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
 
                     foreach (var dstSock in _kpSocks.Values)
                     {
-                        Log.Print($"{_socket.Id}=>{dstSock.Id}, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
+                        Log.Print($"{socket.Id}=>{dstSock.Id}, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
 
                         _ = dstSock.SendAsync(receiveMsg);
                     }
                 }
-                RemoveSocket(_socket);
-                _socket.Stop();
+                RemoveSocket(socket);
+                socket.Stop();
             });
         }
 

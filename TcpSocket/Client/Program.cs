@@ -2,12 +2,15 @@
 using Client;
 using Common;
 
-Log.PrintLevel = LogLevel.WARN;
+//Log.PrintLevel = LogLevel.WARN;
 
 Log.PrintHeader();
 Log.Print("시작", LogLevel.RETURN);
 
-await RemoteServerTest();
+string address = "127.0.0.1";
+int port = 12345;
+
+await KpClientTest(address, port);
 
 Log.Print("끝", LogLevel.RETURN);
 
@@ -61,30 +64,29 @@ async Task RemoteServerTest()
     }
 }
 
+
 async Task ClientTest()
 {
-    string address = "127.0.0.1";
-    int port = 12345;
 
-    ReliableKpSocket kc = new(address, port);
+    ReliableKpClient rkc = new(address, port);
 
-    await KpClientTest(kc, address, port);
+    await ReliableKpSocketTest(rkc, address, port);
 }
 
 
-async Task KpClientTest(KpSocket kc, string address, int port)
+async Task ReliableKpSocketTest(ReliableKpClient rkc, string address, int port)
 {
 
     while (true)
     {
         try
         {
-            await kc.StartAsync();
+            await rkc.StartAsync();
             _ = Task.Run(async () =>
             {
                 while (true)
                 {
-                    Message receiveMsg = await kc.ReceiveAsync();
+                    Message receiveMsg = await rkc.ReceiveAsync();
                     Log.Print($"{receiveMsg}", context: "client");
                 }
             });
@@ -101,10 +103,9 @@ async Task KpClientTest(KpSocket kc, string address, int port)
     while (true)
     {
         string s = Console.ReadLine() ?? "";
-        var msg = new Message(s);
         try
         {
-            await kc.SendAsync(msg);
+            await rkc.BroadcastAsync(s);
         }
         catch
         {
@@ -112,5 +113,51 @@ async Task KpClientTest(KpSocket kc, string address, int port)
         }
     }
 
-    kc.Stop();
+    rkc.Stop();
+}
+
+
+async Task KpClientTest(string address, int port)
+{
+    string input = "12345", expected = "12345";
+
+    int count = 10;
+    List<ReliableKpClient> sockets = new List<ReliableKpClient>();
+
+    for (int i = 0; i < count; i++)
+    {
+        ReliableKpClient socket = new ReliableKpClient(address, port);
+        _ = socket.StartAsync();
+        sockets.Add(socket);
+    }
+
+    // 서버 연결 대기
+    await Task.Delay(1000);
+
+    for (int i = 0; i < count; i++)
+    {
+        _ = sockets[i].BroadcastAsync(input);
+    }
+
+    int passedCount = 0;
+    int totalReceivedMsgLength = 0;
+    for (int i = 0; i < count; i++)
+    {
+        for (int j = 0; j < count; j++)
+        {
+            ReliableMessage actual = (ReliableMessage)await sockets[j].ReceiveAsync();
+            if (expected != actual.Content)
+                Log.Print($"i={i}, j={j}, expected={expected}, actual={actual.Content}, passedCount={passedCount}, totalReceivedMsgLength={totalReceivedMsgLength}", LogLevel.ERROR);
+            passedCount++;
+            totalReceivedMsgLength += actual.Content.Length;
+        }
+    }
+
+    // 메시지 처리 대기
+    await Task.Delay(1000);
+
+    for (int i = 0; i < count; i++)
+    {
+        sockets[i].Stop();
+    }
 }

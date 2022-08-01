@@ -2,9 +2,17 @@
 {
     public enum MessageType
     {
-        NONE = 0,
-        SEND = 100,
-        RES = 200,
+        MESSAGE = 0,
+
+        REQ_START = 100,
+        REQ_ECHO,
+        REQ_BROADCAST,
+        REQ_END,
+
+        RES_START = 200,
+        RES_MSG,
+        RES_REQ,
+        RES_END,
     }
 
     public class ReliableMessage : Message

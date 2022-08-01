@@ -2,6 +2,10 @@
 {
     public class UnitTest1
     {
+        public async Task ServerTest(string input, string expected)
+        {
+        }
+
         [Theory]
         [InlineData(@"0123", @"0123")]
         [InlineData(@"abcxyz", @"abcxyz")]
@@ -83,15 +87,12 @@
             ReliableKpServer server = new ReliableKpServer(port);
             server.Start();
 
-            var msg = new Message(input);
-
-            int count = 20;
-            List<ReliableKpSocket> sockets = new List<ReliableKpSocket>();
+            int count = 10;
+            List<ReliableKpClient> sockets = new List<ReliableKpClient>();
 
             for (int i = 0; i < count; i++)
             {
-                ReliableKpSocket socket = new ReliableKpSocket(address, port);
-                socket.Id = i;
+                ReliableKpClient socket = new ReliableKpClient(address, port);
                 _ = socket.StartAsync();
                 sockets.Add(socket);
             }
@@ -103,7 +104,7 @@
 
             for (int i = 0; i < count; i++)
             {
-                _ = sockets[i].SendAsync(msg);
+                _ = sockets[i].BroadcastAsync(input);
             }
 
             int passedCount = 0;
@@ -112,7 +113,7 @@
             {
                 for (int j = 0; j < count; j++)
                 {
-                    ReliableMessage actual = (ReliableMessage)await sockets[j].ReceiveAsync();
+                    ReliableMessage actual = await sockets[j].ReceiveAsync();
                     if (expected != actual.Content)
                         Assert.True(false, $"i={i}, j={j}, expected={expected}, actual={actual.Content}, passedCount={passedCount}, totalReceivedMsgLength={totalReceivedMsgLength}");
                     passedCount++;

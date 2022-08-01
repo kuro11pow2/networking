@@ -6,6 +6,14 @@ C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\
 C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Client.runtimeconfig.json
 C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Client.dll
 C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Client.pdb
+C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.AsyncEx.Context.dll
+C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.AsyncEx.Coordination.dll
+C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.AsyncEx.Interop.WaitHandles.dll
+C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.AsyncEx.Oop.dll
+C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.AsyncEx.Tasks.dll
+C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.Cancellation.dll
+C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.Collections.Deque.dll
+C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.Disposables.dll
 C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Common.dll
 C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Common.pdb
 C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\obj\Debug\net6.0\Client.csproj.AssemblyReference.cache
@@ -19,11 +27,3 @@ C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\obj\Debug\net6.0\
 C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\obj\Debug\net6.0\Client.pdb
 C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\obj\Debug\net6.0\Client.genruntimeconfig.cache
 C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\obj\Debug\net6.0\ref\Client.dll
-C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.AsyncEx.Coordination.dll
-C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.AsyncEx.Tasks.dll
-C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.Collections.Deque.dll
-C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.Disposables.dll
-C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.AsyncEx.Context.dll
-C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.AsyncEx.Interop.WaitHandles.dll
-C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.AsyncEx.Oop.dll
-C:\Users\kuro1\Source\Repos\Remote\networking\TcpSocket\Client\bin\Debug\net6.0\Nito.Cancellation.dll

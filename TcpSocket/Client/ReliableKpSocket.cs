@@ -44,9 +44,8 @@ namespace Client
             base.Stop();
         }
 
-        public override async Task SendAsync(Message msg)
+        public async Task SendAsync(string s, MessageType type)
         {
-            ReliableMessage reqMsg;
             int mid;
 
             using (await _mutex.LockAsync())
@@ -55,18 +54,20 @@ namespace Client
                 mid = _sendMsgCount++;
             }
 
-            try
-            {
-                reqMsg = new ReliableMessage(msg.FullBytes.ToArray(), msg.FullBytes.Length);
-            }
-            catch
-            {
-                reqMsg = new ReliableMessage(msg.Msg, MessageType.SEND, mid);
-            }
-
-            _receiveWaitMids.TryAdd(reqMsg.Mid, true);
-            await base.SendAsync(reqMsg);
+            ReliableMessage msg = new(s, type, mid);
+            await SendAsync(msg);
         }
+
+
+        public override async Task SendAsync(Message msg)
+        {
+            Log.Print($"{msg}", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(SendAsync)}");
+
+            ReliableMessage rMsg = (ReliableMessage)msg;
+            _receiveWaitMids.TryAdd(rMsg.Mid, true);
+            await base.SendAsync(rMsg);
+        }
+
 
         public override async Task<Message> ReceiveAsync()
         {
@@ -84,20 +85,22 @@ namespace Client
             throw new IOException("연결 종료됨");
         }
 
+
         private async Task StartProccessWorkAsync()
         {
             while (_state == KpSocketState.CONNECTED)
             {
                 await Task.Delay(1);
-
                 bool result = _workQueue.TryDequeue(out ReliableMessage? reqMsg);
+
                 if (result == false || reqMsg == null)
                     continue;
 
-                if (reqMsg.Type == MessageType.RES)
+                if (MessageType.RES_START < reqMsg.Type && reqMsg.Type < MessageType.RES_END)
                 {
                     if (_receiveWaitMids.TryGetValue(reqMsg.Mid, out bool _))
                     {
+                        Log.Print($"{reqMsg.Mid}번 메시지 수신 응답 확인", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
                         _receiveWaitMids.Remove(reqMsg.Mid, out bool _);
                         continue;
                     }
@@ -106,12 +109,8 @@ namespace Client
                     Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
                     throw new IOException(exs);
                 }
-                else if (reqMsg.Type == MessageType.SEND)
-                {
-                    ReliableMessage response = new("", MessageType.RES, reqMsg.Mid);
-                    await base.SendAsync(response);
-                    _receiveQueue.Enqueue(reqMsg);
-                }
+
+                _receiveQueue.Enqueue(reqMsg);
             }
         }
 
@@ -128,19 +127,26 @@ namespace Client
                 {
                     break;
                 }
-                Log.Print($"{receiveMsg}", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartReceiveAsync)}");
 
-                ReliableMessage reqMsg;
+                ReliableMessage rMsg;
 
                 using (await _mutex.LockAsync())
                 {
-                    _receiveMsgCount++;
                     _totalMsgCount++;
+                    _receiveMsgCount++;
                 }
 
-                reqMsg = new ReliableMessage(receiveMsg.FullBytes.ToArray(), receiveMsg.FullBytes.Length);
+                try
+                {
+                    rMsg = new ReliableMessage(receiveMsg.FullBytes.ToArray(), receiveMsg.FullBytes.Length);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("수신한 데이터가 ReliableMessage가 아님", ex);
+                }
 
-                _workQueue.Enqueue(reqMsg);
+                Log.Print($"{rMsg}", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartReceiveAsync)}");
+                _workQueue.Enqueue(rMsg);
             }
 
             base.Stop();
