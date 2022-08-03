@@ -73,6 +73,7 @@ namespace Client
         {
             while (_state == KpSocketState.CONNECTED)
             {
+                //Thread.Sleep(1);
                 await Task.Delay(1);
 
                 bool result = _receiveQueue.TryDequeue(out ReliableMessage? msg);
@@ -90,6 +91,7 @@ namespace Client
         {
             while (_state == KpSocketState.CONNECTED)
             {
+                //Thread.Sleep(1);
                 await Task.Delay(1);
                 bool result = _workQueue.TryDequeue(out ReliableMessage? reqMsg);
 
