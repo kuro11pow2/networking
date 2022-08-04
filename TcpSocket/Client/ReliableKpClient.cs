@@ -53,5 +53,26 @@ namespace Client
 
             return receiveMsg;
         }
+
+        private string Dict2Str<T, U>(Dictionary<T, U> dict) 
+            where T : notnull 
+            where U : notnull
+        {
+            return string.Join("\n", dict.Select(kvp => $"{kvp.Key}: {kvp.Value}"));
+        }
+
+        protected virtual string Info()
+        {
+            return $"\n[Send]\n{Dict2Str(_socket.SendMsgTypeCount)}\n[Receive]\n{Dict2Str(_socket.ReceiveMsgTypeCount)}";
+        }
+
+        public async Task StartMonitorAsync(int delay = 5000)
+        {
+            while (true)
+            {
+                Log.Print(Info(), LogLevel.RETURN, $"{nameof(ReliableKpClient)} monitor");
+                await Task.Delay(delay);
+            }
+        }
     }
 }

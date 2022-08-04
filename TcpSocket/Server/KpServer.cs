@@ -15,7 +15,7 @@ namespace Server
     internal enum TcpServerState
     {
         INIT,
-        CREATED,
+        PREPARED,
         STARTED,
         STOPPED,
     }
@@ -26,28 +26,35 @@ namespace Server
         private IPEndPoint _ipEndPoint;
         protected ConcurrentDictionary<int, KpSocket> _kpSocks;
         private TcpServerState _state;
+        private int _port;
 
         private readonly AsyncLock _mutex = new AsyncLock();
-        private int _autoIncrementCid;
+        private int _accSocketCount;
 
         public int ClientCount { get { return _kpSocks.Count; } }
 
         public KpServer(int port)
         {
+            _port = port;
+            Prepare();
+        }
+
+        protected virtual void Prepare()
+        {
             _listenSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            _ipEndPoint = new IPEndPoint(IPAddress.Any, port);
+            _ipEndPoint = new IPEndPoint(IPAddress.Any, _port);
             _listenSock.AddressFamily.ToString();
             _kpSocks = new ConcurrentDictionary<int, KpSocket>();
-            _state = TcpServerState.CREATED;
+            _state = TcpServerState.PREPARED;
         }
 
         public void Start()
         {
-            if (!(_state == TcpServerState.CREATED || _state == TcpServerState.STOPPED))
+            if (_state != TcpServerState.PREPARED)
                 return;
             using (_mutex.Lock())
             {
-                if (!(_state == TcpServerState.CREATED || _state == TcpServerState.STOPPED))
+                if (_state != TcpServerState.PREPARED)
                     return;
                 ReadyAccept();
                 StartAccept();
@@ -79,12 +86,18 @@ namespace Server
 
         private void ReadyAccept()
         {
+            if (_state != TcpServerState.PREPARED)
+                return;
+
             _listenSock.Bind(_ipEndPoint);
             _listenSock.Listen();
         }
 
         private void StartAccept()
         {
+            if (_state != TcpServerState.PREPARED)
+                return;
+
             Task.Run(async () =>
             {
                 while (true)
@@ -105,6 +118,9 @@ namespace Server
 
         protected virtual void StartReceive(KpSocket _socket)
         {
+            if (_state != TcpServerState.STARTED)
+                return;
+
             Task.Run(async () =>
             {
                 KpSocket socket = _socket;
@@ -139,7 +155,7 @@ namespace Server
             
             using (await _mutex.LockAsync())
             {
-                socket.Id = _autoIncrementCid++;
+                socket.Id = _accSocketCount++;
             }
             res = _kpSocks.TryAdd(socket.Id, socket);
 
@@ -162,12 +178,17 @@ namespace Server
                 Log.Print($"이미 제거되거나 존재하지 않음 {socket.Id}", context: $"{nameof(KpServer)}-{nameof(RemoveSocket)}");
         }
 
-        public async Task StartMonitorAsync()
+        protected virtual string Info()
+        {
+            return $"\nCurSockCnt: {_kpSocks.Count}, AccSocketCnt: {_accSocketCount}";
+        }
+
+        public async Task StartMonitorAsync(int delay=5000)
         {
             while (_state == TcpServerState.STARTED)
             {
-                Log.Print($"count: {_kpSocks.Count}, acc count: {_autoIncrementCid}", LogLevel.RETURN, "server monitor");
-                await Task.Delay(5000);
+                Log.Print(Info(), LogLevel.RETURN, $"{nameof(ReliableKpServer)} monitor");
+                await Task.Delay(delay);
             }
         }
     }

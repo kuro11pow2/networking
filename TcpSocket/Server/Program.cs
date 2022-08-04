@@ -20,7 +20,7 @@ async Task KpServerTest(int port)
 
     ks.Start();
 
-    await Task.Delay(1000000);
+    await ks.StartMonitorAsync();
 }
 
 async Task ReliableKpServerTest(int port)
@@ -29,5 +29,5 @@ async Task ReliableKpServerTest(int port)
 
     ks.Start();
 
-    await Task.Delay(1000000);
+    await ks.StartMonitorAsync(10000);
 }

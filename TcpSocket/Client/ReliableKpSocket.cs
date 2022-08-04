@@ -16,20 +16,31 @@ namespace Client
         private readonly ConcurrentQueue<ReliableMessage> _workQueue = new();
         private readonly ConcurrentQueue<ReliableMessage> _receiveQueue = new();
         private readonly ConcurrentDictionary<int, bool> _receiveWaitMids = new();
-        private int _totalMsgCount, _sendMsgCount, _receiveMsgCount;
+        private Dictionary<MessageType, int> _sendMsgTypeCount, _receiveMsgTypeCount;
+        private int _sendMsgCount, _receiveMsgCount;
 
-        public int TotalMsgCount { get { return _totalMsgCount; } }
+
         public int SendMsgCount { get { return _sendMsgCount; } }
         public int ReceiveMsgCount { get { return _receiveMsgCount; } }
-                
+        public Dictionary<MessageType, int> SendMsgTypeCount { get { return _sendMsgTypeCount; } }
+        public Dictionary<MessageType, int> ReceiveMsgTypeCount { get { return _receiveMsgTypeCount; } }
+
         private readonly AsyncLock _mutex = new();
 
         public ReliableKpSocket(Socket connectedSocket) : base(connectedSocket)
         {
+            _receiveMsgTypeCount = new Dictionary<MessageType, int>();
+            _sendMsgTypeCount = new Dictionary<MessageType, int>();
+            _sendMsgCount = 0;
+            _receiveMsgCount = 0;
         }
 
         public ReliableKpSocket(string address, int port) : base(address, port)
         {
+            _receiveMsgTypeCount = new Dictionary<MessageType, int>();
+            _sendMsgTypeCount = new Dictionary<MessageType, int>();
+            _sendMsgCount = 0;
+            _receiveMsgCount = 0;
         }
 
         public override async Task StartAsync()
@@ -50,7 +61,7 @@ namespace Client
 
             using (await _mutex.LockAsync())
             {
-                _totalMsgCount++;
+                AddDict(_sendMsgTypeCount, type, 1);
                 mid = _sendMsgCount++;
             }
 
@@ -132,12 +143,6 @@ namespace Client
 
                 ReliableMessage rMsg;
 
-                using (await _mutex.LockAsync())
-                {
-                    _totalMsgCount++;
-                    _receiveMsgCount++;
-                }
-
                 try
                 {
                     rMsg = new ReliableMessage(receiveMsg.FullBytes.ToArray(), receiveMsg.FullBytes.Length);
@@ -147,11 +152,25 @@ namespace Client
                     throw new Exception("수신한 데이터가 ReliableMessage가 아님", ex);
                 }
 
+                using (await _mutex.LockAsync())
+                {
+                    AddDict(_receiveMsgTypeCount, rMsg.Type, 1);
+                    _receiveMsgCount++;
+                }
+
                 Log.Print($"{rMsg}", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartReceiveAsync)}");
                 _workQueue.Enqueue(rMsg);
             }
 
             base.Stop();
+        }
+
+        private void AddDict<T>(Dictionary<T, int> dict, T key, int ebx) where T : notnull
+        {
+            if (dict.TryGetValue(key, out int eax))
+                dict[key] = eax + ebx;
+            else
+                dict[key] = ebx;
         }
     }
 }

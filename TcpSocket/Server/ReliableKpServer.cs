@@ -22,6 +22,43 @@ namespace Server
         {
         }
 
+        protected override void Prepare()
+        {
+            base.Prepare();
+        }
+        private void AddDict<T>(Dictionary<T, int> dict, T key, int ebx) where T : notnull
+        {
+            if (dict.TryGetValue(key, out int eax))
+                dict[key] = eax + ebx;
+            else
+                dict[key] = ebx;
+        }
+        private string Dict2Str<T, U>(Dictionary<T, U> dict)
+            where T : notnull
+            where U : notnull
+        {
+            return string.Join("\n", dict.Select(kvp => $"{kvp.Key}: {kvp.Value}"));
+        }
+
+        protected override string Info()
+        {
+            Dictionary<MessageType, int> SendMsgTypeCount = new Dictionary<MessageType, int>();
+            Dictionary<MessageType, int> ReceiveMsgTypeCount = new Dictionary<MessageType, int>();
+
+            foreach (ReliableKpSocket sock in _kpSocks.Values)
+            {
+                foreach (var tup in sock.SendMsgTypeCount)
+                {
+                    AddDict(SendMsgTypeCount, tup.Key, tup.Value);
+                }
+                foreach (var tup in sock.ReceiveMsgTypeCount)
+                {
+                    AddDict(ReceiveMsgTypeCount, tup.Key, tup.Value);
+                }
+            }
+            return $"{base.Info()}\n[Send]\n{Dict2Str(SendMsgTypeCount)}\n[Receive]\n{Dict2Str(ReceiveMsgTypeCount)}";
+        }
+
         protected override KpSocket GetSocket(Socket sock)
         {
             KpSocket socket = new ReliableKpSocket(sock);
@@ -43,6 +80,13 @@ namespace Server
                     catch
                     {
                         break;
+                    }
+
+                    if (receiveMsg.Type == MessageType.MESSAGE)
+                    {
+                        string exs = $"잘못된 메시지 수신\n{receiveMsg}";
+                        Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableKpServer)}-{nameof(StartReceive)}");
+                        throw new Exception(exs);
                     }
 
                     if (MessageType.REQ_START < receiveMsg.Type && receiveMsg.Type < MessageType.REQ_END)
