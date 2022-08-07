@@ -7,10 +7,12 @@ using Common;
 Log.PrintHeader();
 Log.Print("시작", LogLevel.RETURN);
 
-string address = "127.0.0.1";
-int port = 12345;
+string address = "192.168.0.53";
+int port = 7000;
 
-await RunReliableKpClient(address, port);
+Log.PrintLevel = LogLevel.ERROR;
+
+await KpClientTest(address, port);
 
 Log.Print("끝", LogLevel.RETURN);
 
@@ -111,9 +113,9 @@ async Task RunReliableKpClient(string address, int port)
 
 async Task KpClientTest(string address, int port)
 {
-    string input = "12345", expected = "12345";
+    string input = "가나다", expected = "가나다";
 
-    int count = 10;
+    int count = 100;
     List<ReliableKpClient> sockets = new List<ReliableKpClient>();
 
     for (int i = 0; i < count; i++)
@@ -145,11 +147,67 @@ async Task KpClientTest(string address, int port)
         }
     }
 
+    Log.Print("메시지 처리 대기중");
     // 메시지 처리 대기
-    await Task.Delay(100000000);
+    await Task.Delay(2000);
 
     for (int i = 0; i < count; i++)
     {
         sockets[i].Stop();
     }
 }
+
+
+async Task KpClientAsyncTest(string address, int port)
+{
+    string input = "가나다", expected = "가나다";
+
+    int count = 100;
+    List<ReliableKpClient> clients = new List<ReliableKpClient>();
+
+    for (int i = 0; i < count; i++)
+    {
+        ReliableKpClient socket = new ReliableKpClient(address, port);
+        _ = socket.StartAsync();
+        clients.Add(socket);
+    }
+
+    // 서버 연결 대기
+    await Task.Delay(2000);
+
+    for (int i = 0; i < count; i++)
+    {
+        _ = clients[i].BroadcastAsync(input);
+    }
+
+
+    List<Task> tasks = new();
+
+    for (int i = 0; i < count; i++)
+    {
+        int idx = i;
+        Task t = Task.Run(async () =>
+        {
+            for (int j = 0; j < count; j++)
+            {
+                ReliableMessage actual = await clients[idx].ReceiveAsync();
+                if (expected != actual.Content)
+                {
+                    Log.Print($"i ={ idx}, j ={ j}, expected ={ expected}, actual ={ actual.Content}", LogLevel.ERROR);
+                }
+            }
+        });
+
+        tasks.Add(t);
+    }
+
+    Log.Print("메시지 처리 대기중");
+    await Task.WhenAll(tasks);
+
+    for (int i = 0; i < count; i++)
+    {
+        clients[i].Stop();
+    }
+}
+
+

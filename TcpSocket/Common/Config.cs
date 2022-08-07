@@ -12,7 +12,7 @@ namespace Common
         {
             PrintLevel = LogLevel.DEBUG;
             ServerAddress = "127.0.0.1";
-            Port = 7000;
+            Port = 12345;
         }
 
         public override string ToString()
