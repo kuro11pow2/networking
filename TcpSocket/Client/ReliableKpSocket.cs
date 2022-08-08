@@ -104,27 +104,53 @@ namespace Client
             {
                 //Thread.Sleep(1);
                 await Task.Delay(1);
-                bool result = _workQueue.TryDequeue(out ReliableMessage? reqMsg);
-
-                if (result == false || reqMsg == null)
-                    continue;
-
-                if (MessageType.RES_START < reqMsg.Type && reqMsg.Type < MessageType.RES_END)
+                while (_workQueue.TryDequeue(out ReliableMessage? reqMsg))
                 {
-                    if (_receiveWaitMids.TryGetValue(reqMsg.Mid, out bool _))
-                    {
-                        Log.Print($"{reqMsg.Mid}번 메시지 수신 응답 확인", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
-                        _receiveWaitMids.Remove(reqMsg.Mid, out bool _);
+                    if (reqMsg == null)
                         continue;
+
+                    if (MessageType.RES_START < reqMsg.Type && reqMsg.Type < MessageType.RES_END)
+                    {
+                        if (_receiveWaitMids.TryGetValue(reqMsg.Mid, out bool _))
+                        {
+                            Log.Print($"{reqMsg.Mid}번 메시지 수신 응답 확인", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
+                            _receiveWaitMids.Remove(reqMsg.Mid, out bool _);
+                            continue;
+                        }
+
+                        string exs = $"잘못된 response 수신\n{reqMsg}";
+                        Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
+                        throw new IOException(exs);
                     }
 
-                    string exs = $"잘못된 response 수신\n{reqMsg}";
-                    Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
-                    throw new IOException(exs);
+                    _receiveQueue.Enqueue(reqMsg);
                 }
-
-                _receiveQueue.Enqueue(reqMsg);
             }
+            //while (_state == KpSocketState.CONNECTED)
+            //{
+            //    //Thread.Sleep(1);
+            //    await Task.Delay(1);
+            //    bool result = _workQueue.TryDequeue(out ReliableMessage? reqMsg);
+
+            //    if (result == false || reqMsg == null)
+            //        continue;
+
+            //    if (MessageType.RES_START < reqMsg.Type && reqMsg.Type < MessageType.RES_END)
+            //    {
+            //        if (_receiveWaitMids.TryGetValue(reqMsg.Mid, out bool _))
+            //        {
+            //            Log.Print($"{reqMsg.Mid}번 메시지 수신 응답 확인", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
+            //            _receiveWaitMids.Remove(reqMsg.Mid, out bool _);
+            //            continue;
+            //        }
+
+            //        string exs = $"잘못된 response 수신\n{reqMsg}";
+            //        Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
+            //        throw new IOException(exs);
+            //    }
+
+            //    _receiveQueue.Enqueue(reqMsg);
+            //}
         }
 
         private async Task StartReceiveAsync()
