@@ -24,7 +24,7 @@
 
             var msg = new Message(input);
 
-            int count = 20;
+            int count = 100;
             List<KpSocket> sockets = new List<KpSocket>();
 
             for (int i = 0; i < count; i++)
@@ -87,7 +87,7 @@
             ReliableKpServer server = new ReliableKpServer(port);
             server.Start();
 
-            int count = 20;
+            int count = 100;
             List<ReliableKpClient> clients = new List<ReliableKpClient>();
 
             for (int i = 0; i < count; i++)

@@ -13,8 +13,6 @@ namespace Client
 
     public class ReliableKpSocket : KpSocket
     {
-        private readonly ConcurrentQueue<ReliableMessage> _workQueue = new();
-        private readonly ConcurrentQueue<ReliableMessage> _receiveQueue = new();
         private readonly ConcurrentDictionary<int, bool> _receiveWaitMids = new();
         private Dictionary<MessageType, int> _sendMsgTypeCount, _receiveMsgTypeCount;
         private int _sendMsgCount, _receiveMsgCount;
@@ -46,8 +44,6 @@ namespace Client
         public override async Task StartAsync()
         {
             await base.StartAsync();
-            _ = StartReceiveAsync();
-            _ = StartProccessWorkAsync();
         }
 
         public override void Stop()
@@ -84,98 +80,17 @@ namespace Client
         {
             while (_state == KpSocketState.CONNECTED)
             {
-                //Thread.Sleep(1);
-                await Task.Delay(1);
-
-                bool result = _receiveQueue.TryDequeue(out ReliableMessage? msg);
-
-                if (result == false || msg == null)
-                    continue;
-                return msg;
-            }
-
-            throw new IOException("연결 종료됨");
-        }
-
-
-        private async Task StartProccessWorkAsync()
-        {
-            while (_state == KpSocketState.CONNECTED)
-            {
-                //Thread.Sleep(1);
-                await Task.Delay(1);
-                while (_workQueue.TryDequeue(out ReliableMessage? reqMsg))
-                {
-                    if (reqMsg == null)
-                        continue;
-
-                    if (MessageType.RES_START < reqMsg.Type && reqMsg.Type < MessageType.RES_END)
-                    {
-                        if (_receiveWaitMids.TryGetValue(reqMsg.Mid, out bool _))
-                        {
-                            Log.Print($"{reqMsg.Mid}번 메시지 수신 응답 확인", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
-                            _receiveWaitMids.Remove(reqMsg.Mid, out bool _);
-                            continue;
-                        }
-
-                        string exs = $"잘못된 response 수신\n{reqMsg}";
-                        Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
-                        throw new IOException(exs);
-                    }
-
-                    _receiveQueue.Enqueue(reqMsg);
-                }
-            }
-            //while (_state == KpSocketState.CONNECTED)
-            //{
-            //    //Thread.Sleep(1);
-            //    await Task.Delay(1);
-            //    bool result = _workQueue.TryDequeue(out ReliableMessage? reqMsg);
-
-            //    if (result == false || reqMsg == null)
-            //        continue;
-
-            //    if (MessageType.RES_START < reqMsg.Type && reqMsg.Type < MessageType.RES_END)
-            //    {
-            //        if (_receiveWaitMids.TryGetValue(reqMsg.Mid, out bool _))
-            //        {
-            //            Log.Print($"{reqMsg.Mid}번 메시지 수신 응답 확인", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
-            //            _receiveWaitMids.Remove(reqMsg.Mid, out bool _);
-            //            continue;
-            //        }
-
-            //        string exs = $"잘못된 response 수신\n{reqMsg}";
-            //        Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartProccessWorkAsync)}");
-            //        throw new IOException(exs);
-            //    }
-
-            //    _receiveQueue.Enqueue(reqMsg);
-            //}
-        }
-
-        private async Task StartReceiveAsync()
-        {
-            while (_state == KpSocketState.CONNECTED)
-            {
-                Message receiveMsg;
-                try
-                {
-                    receiveMsg = await base.ReceiveAsync();
-                }
-                catch
-                {
-                    break;
-                }
-
+                Message msg = await base.ReceiveAsync();
                 ReliableMessage rMsg;
-
                 try
                 {
-                    rMsg = new ReliableMessage(receiveMsg.FullBytes.ToArray(), receiveMsg.FullBytes.Length);
+                    rMsg = new ReliableMessage(msg.FullBytes.ToArray(), msg.FullBytes.Length);
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception("수신한 데이터가 ReliableMessage가 아님", ex);
+                    string exs1 = "수신한 데이터가 ReliableMessage가 아님";
+                    Log.Print(exs1, LogLevel.ERROR, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(ReceiveAsync)}");
+                    throw new Exception(exs1);
                 }
 
                 using (await _mutex.LockAsync())
@@ -184,11 +99,35 @@ namespace Client
                     _receiveMsgCount++;
                 }
 
-                Log.Print($"{rMsg}", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(StartReceiveAsync)}");
-                _workQueue.Enqueue(rMsg);
+                Log.Print($"{rMsg}", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(ReceiveAsync)}");
+                ProccessMessage(rMsg, out bool validMsg);
+
+                if (validMsg)
+                    return rMsg;
             }
 
-            base.Stop();
+            string exs2 = "_state != KpSocketState.CONNECTED";
+            Log.Print(exs2, LogLevel.ERROR, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(ReceiveAsync)}");
+            throw new Exception(exs2);
+        }
+
+        private void ProccessMessage(ReliableMessage reqMsg, out bool isValid)
+        {
+            if (MessageType.RES_START < reqMsg.Type && reqMsg.Type < MessageType.RES_END)
+            {
+                if (_receiveWaitMids.TryGetValue(reqMsg.Mid, out bool _))
+                {
+                    Log.Print($"{reqMsg.Mid}번 메시지 수신 응답 확인", LogLevel.INFO, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(ProccessMessage)}");
+                    _receiveWaitMids.Remove(reqMsg.Mid, out bool _);
+                    isValid = false;
+                    return;
+                }
+
+                string exs = $"잘못된 response 수신\n{reqMsg}";
+                Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableKpSocket)}{Id}-{nameof(ProccessMessage)}");
+                throw new IOException(exs);
+            }
+            isValid = true;
         }
 
         private void AddDict<T>(Dictionary<T, int> dict, T key, int ebx) where T : notnull
