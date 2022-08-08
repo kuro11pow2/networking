@@ -20,11 +20,11 @@ namespace Server
         STOPPED,
     }
 
-    public class KpServer
+    public class MessageServer
     {
         private Socket _listenSock;
         private IPEndPoint _ipEndPoint;
-        protected ConcurrentDictionary<int, KpSocket> _kpSocks;
+        protected ConcurrentDictionary<int, MessageSocket> _kpSocks;
         private TcpServerState _state;
         private int _port;
 
@@ -33,7 +33,7 @@ namespace Server
 
         public int ClientCount { get { return _kpSocks.Count; } }
 
-        public KpServer(int port)
+        public MessageServer(int port)
         {
             _port = port;
             Prepare();
@@ -44,7 +44,7 @@ namespace Server
             _listenSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             _ipEndPoint = new IPEndPoint(IPAddress.Any, _port);
             _listenSock.AddressFamily.ToString();
-            _kpSocks = new ConcurrentDictionary<int, KpSocket>();
+            _kpSocks = new ConcurrentDictionary<int, MessageSocket>();
             _state = TcpServerState.PREPARED;
         }
 
@@ -103,7 +103,7 @@ namespace Server
                 while (true)
                 {
                     Socket sock = await _listenSock.AcceptAsync();
-                    KpSocket kpSock = GetSocket(sock);
+                    MessageSocket kpSock = GetSocket(sock);
                     await AddSocketAsync(kpSock);
                     await kpSock.StartAsync();
                     StartReceive(kpSock);
@@ -111,19 +111,19 @@ namespace Server
             });
         }
 
-        protected virtual KpSocket GetSocket(Socket socket)
+        protected virtual MessageSocket GetSocket(Socket socket)
         {
-            return new KpSocket(socket);
+            return new MessageSocket(socket);
         }
 
-        protected virtual void StartReceive(KpSocket _socket)
+        protected virtual void StartReceive(MessageSocket _socket)
         {
             if (_state != TcpServerState.STARTED)
                 return;
 
             Task.Run(async () =>
             {
-                KpSocket socket = _socket;
+                MessageSocket socket = _socket;
                 while (true)
                 {
                     Message receiveMsg;
@@ -135,11 +135,11 @@ namespace Server
                     {
                         break;
                     }
-                    Log.Print($"{socket.Id}=>all, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
+                    Log.Print($"{socket.Id}=>all, {receiveMsg}", LogLevel.INFO, context: $"{nameof(MessageServer)}-{nameof(StartReceive)}");
 
                     foreach (var dstSock in _kpSocks.Values)
                     {
-                        Log.Print($"{socket.Id}=>{dstSock.Id}, {receiveMsg}", LogLevel.INFO, context: $"{nameof(KpServer)}-{nameof(StartReceive)}");
+                        Log.Print($"{socket.Id}=>{dstSock.Id}, {receiveMsg}", LogLevel.INFO, context: $"{nameof(MessageServer)}-{nameof(StartReceive)}");
 
                         _ = dstSock.SendAsync(receiveMsg);
                     }
@@ -149,7 +149,7 @@ namespace Server
             });
         }
 
-        private async Task AddSocketAsync(KpSocket socket)
+        private async Task AddSocketAsync(MessageSocket socket)
         {
             bool res;
             
@@ -160,22 +160,22 @@ namespace Server
             res = _kpSocks.TryAdd(socket.Id, socket);
 
             if (res)
-                Log.Print($"추가됨 {socket.Id}", context: $"{nameof(KpServer)}-{nameof(AddSocketAsync)}");
+                Log.Print($"추가됨 {socket.Id}", context: $"{nameof(MessageServer)}-{nameof(AddSocketAsync)}");
             else
-                Log.Print($"동일한 cid가 존재함 {socket.Id}", context: $"{nameof(KpServer)}-{nameof(AddSocketAsync)}");
+                Log.Print($"동일한 cid가 존재함 {socket.Id}", context: $"{nameof(MessageServer)}-{nameof(AddSocketAsync)}");
         }
 
-        protected void RemoveSocket(KpSocket socket)
+        protected void RemoveSocket(MessageSocket socket)
         {
             bool res;
             int cid = socket.Id;
-            KpSocket? removed;
+            MessageSocket? removed;
             res = _kpSocks.TryRemove(cid, out removed);
 
             if (res)
-                Log.Print($"제거됨 {socket.Id}", context: $"{nameof(KpServer)}-{nameof(RemoveSocket)}");
+                Log.Print($"제거됨 {socket.Id}", context: $"{nameof(MessageServer)}-{nameof(RemoveSocket)}");
             else
-                Log.Print($"이미 제거되거나 존재하지 않음 {socket.Id}", context: $"{nameof(KpServer)}-{nameof(RemoveSocket)}");
+                Log.Print($"이미 제거되거나 존재하지 않음 {socket.Id}", context: $"{nameof(MessageServer)}-{nameof(RemoveSocket)}");
         }
 
         protected virtual string Info()
@@ -187,7 +187,7 @@ namespace Server
         {
             while (_state == TcpServerState.STARTED)
             {
-                Log.Print(Info(), LogLevel.RETURN, $"{nameof(ReliableKpServer)} monitor");
+                Log.Print(Info(), LogLevel.RETURN, $"{nameof(ReliableMessageServer)} monitor");
                 await Task.Delay(delay);
             }
         }

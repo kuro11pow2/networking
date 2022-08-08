@@ -8,11 +8,11 @@ namespace Client
 {
     using Common;
 
-    public class ReliableKpClient
+    public class ReliableMessageClient
     {
-        private ReliableKpSocket _socket;
+        private ReliableMessageSocket _socket;
 
-        public ReliableKpClient(string address, int port)
+        public ReliableMessageClient(string address, int port)
         {
             _socket = new(address, port);
         }
@@ -44,7 +44,7 @@ namespace Client
             if (receiveMsg.Type != MessageType.MESSAGE)
             {
                 string exs = $"잘못된 메시지 수신\n{receiveMsg}";
-                Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableKpClient)}-{nameof(ReceiveAsync)}");
+                Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableMessageClient)}-{nameof(ReceiveAsync)}");
                 throw new Exception(exs);
             }
 
@@ -70,7 +70,7 @@ namespace Client
         {
             while (true)
             {
-                Log.Print(Info(), LogLevel.RETURN, $"{nameof(ReliableKpClient)} monitor");
+                Log.Print(Info(), LogLevel.RETURN, $"{nameof(ReliableMessageClient)} monitor");
                 await Task.Delay(delay);
             }
         }

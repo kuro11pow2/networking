@@ -16,9 +16,9 @@ namespace Server
     /// <summary>
     /// Message를 ReliableMessage로 변환하는 과정이 매우 빈번하게 발생하여 구조 개선이 필요함.
     /// </summary>
-    public class ReliableKpServer : KpServer
+    public class ReliableMessageServer : MessageServer
     {
-        public ReliableKpServer(int port) : base(port)
+        public ReliableMessageServer(int port) : base(port)
         {
         }
 
@@ -45,7 +45,7 @@ namespace Server
             Dictionary<MessageType, int> SendMsgTypeCount = new Dictionary<MessageType, int>();
             Dictionary<MessageType, int> ReceiveMsgTypeCount = new Dictionary<MessageType, int>();
 
-            foreach (ReliableKpSocket sock in _kpSocks.Values)
+            foreach (ReliableMessageSocket sock in _kpSocks.Values)
             {
                 foreach (var tup in sock.SendMsgTypeCount)
                 {
@@ -59,17 +59,17 @@ namespace Server
             return $"{base.Info()}\n[Send]\n{Dict2Str(SendMsgTypeCount)}\n[Receive]\n{Dict2Str(ReceiveMsgTypeCount)}";
         }
 
-        protected override KpSocket GetSocket(Socket sock)
+        protected override MessageSocket GetSocket(Socket sock)
         {
-            KpSocket socket = new ReliableKpSocket(sock);
+            MessageSocket socket = new ReliableMessageSocket(sock);
             return socket;
         }
 
-        protected override void StartReceive(KpSocket _socket)
+        protected override void StartReceive(MessageSocket _socket)
         {
             Task.Run(async () =>
             {
-                ReliableKpSocket socket = (ReliableKpSocket)_socket;
+                ReliableMessageSocket socket = (ReliableMessageSocket)_socket;
                 while (true)
                 {
                     ReliableMessage receiveMsg;
@@ -85,7 +85,7 @@ namespace Server
                     if (receiveMsg.Type == MessageType.MESSAGE)
                     {
                         string exs = $"잘못된 메시지 수신\n{receiveMsg}";
-                        Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableKpServer)}-{nameof(StartReceive)}");
+                        Log.Print(exs, LogLevel.ERROR, context: $"{nameof(ReliableMessageServer)}-{nameof(StartReceive)}");
                         throw new Exception(exs);
                     }
 
@@ -93,13 +93,13 @@ namespace Server
                     {
                         if (receiveMsg.Type == MessageType.REQ_ECHO)
                         {
-                            Log.Print($"{socket.Id}=>{socket.Id}, {receiveMsg.Content}", LogLevel.INFO, context: $"{nameof(ReliableKpServer)}-{nameof(StartReceive)}");
+                            Log.Print($"{socket.Id}=>{socket.Id}, {receiveMsg.Content}", LogLevel.INFO, context: $"{nameof(ReliableMessageServer)}-{nameof(StartReceive)}");
                             await socket.SendAsync(receiveMsg.Content, MessageType.MESSAGE);
                         }
                         else if (receiveMsg.Type == MessageType.REQ_BROADCAST)
                         {
-                            Log.Print($"{socket.Id}=>all, {receiveMsg.Content}", LogLevel.INFO, context: $"{nameof(ReliableKpServer)}-{nameof(StartReceive)}");
-                            foreach (ReliableKpSocket dstSock in _kpSocks.Values)
+                            Log.Print($"{socket.Id}=>all, {receiveMsg.Content}", LogLevel.INFO, context: $"{nameof(ReliableMessageServer)}-{nameof(StartReceive)}");
+                            foreach (ReliableMessageSocket dstSock in _kpSocks.Values)
                             {
                                 _ = dstSock.SendAsync(receiveMsg.Content, MessageType.MESSAGE);
                             }

@@ -26,11 +26,11 @@ async Task RemoteServerTest()
     var msg = new Message(expected);
 
     int count = 20;
-    List<ReliableKpSocket> clients = new List<ReliableKpSocket>();
+    List<ReliableMessageSocket> clients = new List<ReliableMessageSocket>();
 
     for (int i = 0; i < count; i++)
     {
-        ReliableKpSocket kc = new ReliableKpSocket(address, port);
+        ReliableMessageSocket kc = new ReliableMessageSocket(address, port);
         kc.Id = i;
         await kc.StartAsync();
         clients.Add(kc);
@@ -69,7 +69,7 @@ async Task RemoteServerTest()
 
 async Task RunReliableKpClient(string address, int port)
 {
-    ReliableKpClient rkc = new(address, port);
+    ReliableMessageClient rkc = new(address, port);
     while (true)
     {
         try
@@ -116,11 +116,11 @@ async Task KpClientTest(string address, int port)
     string input = "가나다", expected = "가나다";
 
     int count = 100;
-    List<ReliableKpClient> sockets = new List<ReliableKpClient>();
+    List<ReliableMessageClient> sockets = new List<ReliableMessageClient>();
 
     for (int i = 0; i < count; i++)
     {
-        ReliableKpClient socket = new ReliableKpClient(address, port);
+        ReliableMessageClient socket = new ReliableMessageClient(address, port);
         _ = socket.StartAsync();
         sockets.Add(socket);
     }
@@ -163,11 +163,11 @@ async Task KpClientAsyncTest(string address, int port)
     string input = "가나다", expected = "가나다";
 
     int count = 100;
-    List<ReliableKpClient> clients = new List<ReliableKpClient>();
+    List<ReliableMessageClient> clients = new List<ReliableMessageClient>();
 
     for (int i = 0; i < count; i++)
     {
-        ReliableKpClient socket = new ReliableKpClient(address, port);
+        ReliableMessageClient socket = new ReliableMessageClient(address, port);
         _ = socket.StartAsync();
         clients.Add(socket);
     }

@@ -38,7 +38,7 @@ namespace Client
         }
     }
 
-    public class KpSocket
+    public class MessageSocket
     {
         private readonly Socket _socket;
         private readonly IPEndPoint _ipEndPoint;
@@ -60,14 +60,14 @@ namespace Client
             set {  _stream = value; } 
         }
 
-        public KpSocket(string address, int port)
+        public MessageSocket(string address, int port)
         {
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             _ipEndPoint = new IPEndPoint(IPAddress.Parse(address), port);
             _state = KpSocketState.CREATED;
         }
 
-        public KpSocket(Socket connectedSocket)
+        public MessageSocket(Socket connectedSocket)
         {
             _socket = connectedSocket;
             if (connectedSocket.RemoteEndPoint == null)
@@ -89,7 +89,7 @@ namespace Client
         public virtual async Task SendAsync(Message msg)
         {
             await Stream.WriteAsync(msg.FullBytes);
-            Log.Print(msg.ToString(), LogLevel.INFO, context: $"{nameof(KpSocket)}{Id}-{nameof(SendAsync)}");
+            Log.Print(msg.ToString(), LogLevel.INFO, context: $"{nameof(MessageSocket)}{Id}-{nameof(SendAsync)}");
         }
 
         public virtual async Task<Message> ReceiveAsync()
@@ -101,7 +101,7 @@ namespace Client
 
             var msg = new Message(buffer, Message.HEADER_BYTES_LENGTH + expectedBytesLength);
             ArrayPool<byte>.Shared.Return(buffer);
-            Log.Print(msg.ToString(), LogLevel.INFO, context: $"{nameof(KpSocket)}{Id}-{nameof(ReceiveAsync)}");
+            Log.Print(msg.ToString(), LogLevel.INFO, context: $"{nameof(MessageSocket)}{Id}-{nameof(ReceiveAsync)}");
 
             return msg;
         }

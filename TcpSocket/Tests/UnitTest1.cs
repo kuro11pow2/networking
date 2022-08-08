@@ -19,17 +19,17 @@
             string address = "127.0.0.1";
             int port = 12345;
 
-            KpServer server = new KpServer(port);
+            MessageServer server = new MessageServer(port);
             server.Start();
 
             var msg = new Message(input);
 
             int count = 100;
-            List<KpSocket> sockets = new List<KpSocket>();
+            List<MessageSocket> sockets = new List<MessageSocket>();
 
             for (int i = 0; i < count; i++)
             {
-                KpSocket socket = new KpSocket(address, port);
+                MessageSocket socket = new MessageSocket(address, port);
                 socket.Id = i;
                 _ = socket.StartAsync();
                 sockets.Add(socket);
@@ -84,15 +84,15 @@
             string address = "127.0.0.1";
             int port = 12345;
 
-            ReliableKpServer server = new ReliableKpServer(port);
+            ReliableMessageServer server = new ReliableMessageServer(port);
             server.Start();
 
             int count = 100;
-            List<ReliableKpClient> clients = new List<ReliableKpClient>();
+            List<ReliableMessageClient> clients = new List<ReliableMessageClient>();
 
             for (int i = 0; i < count; i++)
             {
-                ReliableKpClient client = new ReliableKpClient(address, port);
+                ReliableMessageClient client = new ReliableMessageClient(address, port);
                 _ = client.StartAsync();
                 clients.Add(client);
             }
