@@ -108,7 +108,7 @@ namespace Client
 
         private async Task ReadStreamAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
         {
-            int receivedBytes = await Stream.ReadAsync(buffer, offset, count, cancellationToken);
+            int receivedBytes = await Stream.ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
 
             if (receivedBytes == 0)
             {

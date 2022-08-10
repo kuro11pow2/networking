@@ -62,11 +62,10 @@ async Task RunReliableKpClient(string address, int port)
 async Task KpClientTest(string address, int port)
 {
     Log.PrintLevel = LogLevel.ERROR;
-    Log.Print("테스트 시작", LogLevel.RETURN);
 
     string input = "가나다", expected = "가나다";
 
-    int count = 1000;
+    int count = 100;
     List<ReliableMessageClient> sockets = new List<ReliableMessageClient>();
 
     for (int i = 0; i < count; i++)
@@ -78,6 +77,7 @@ async Task KpClientTest(string address, int port)
 
     // 서버 연결 대기
     await Task.Delay(2000);
+    Log.Print("테스트 시작", LogLevel.RETURN);
 
     for (int i = 0; i < count; i++)
     {
@@ -113,11 +113,10 @@ async Task KpClientTest(string address, int port)
 async Task KpClientAsyncTest(string address, int port)
 {
     Log.PrintLevel = LogLevel.ERROR;
-    Log.Print("테스트 시작", LogLevel.RETURN);
 
     string input = "가나다", expected = "가나다";
 
-    int count = 1000;
+    int count = 100;
     List<ReliableMessageClient> clients = new List<ReliableMessageClient>();
 
     for (int i = 0; i < count; i++)
@@ -129,6 +128,7 @@ async Task KpClientAsyncTest(string address, int port)
 
     // 서버 연결 대기
     await Task.Delay(2000);
+    Log.Print("테스트 시작", LogLevel.RETURN);
 
     for (int i = 0; i < count; i++)
     {
