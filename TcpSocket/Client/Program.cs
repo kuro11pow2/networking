@@ -7,66 +7,13 @@ using Common;
 Log.PrintHeader();
 Log.Print("시작", LogLevel.RETURN);
 
-string address = "127.0.0.1";
+string address = "192.168.0.53";
 int port = 7000;
 
 
-await RunReliableKpClient(address, port);
+await KpClientAsyncTest(address, port);
 
 Log.Print("끝", LogLevel.RETURN);
-
-async Task RemoteServerTest()
-{
-    Log.PrintLevel = LogLevel.ERROR;
-
-    string address = "127.0.0.1";
-    int port = 12345;
-
-    string expected = "A";
-
-    var msg = new Message(expected);
-
-    int count = 20;
-    List<ReliableMessageSocket> clients = new List<ReliableMessageSocket>();
-
-    for (int i = 0; i < count; i++)
-    {
-        ReliableMessageSocket kc = new ReliableMessageSocket(address, port);
-        kc.Id = i;
-        await kc.StartAsync();
-        clients.Add(kc);
-    }
-
-    Log.Print("서버 연결 대기중");
-    await Task.Delay(1000);
-
-    for (int i = 0; i < count; i++)
-    {
-        _ = clients[i].SendAsync(msg);
-    }
-
-    int passedCount = 0;
-    int totalReceivedMsgLength = 0;
-    for (int i = 0; i < count; i++)
-    {
-        for (int j = 0; j < count; j++)
-        {
-            ReliableMessage actual = (ReliableMessage)await clients[j].ReceiveAsync();
-            if (expected != actual.Content)
-                throw new Exception($"i={i}, j={j}, expected={expected}, actual={actual.Content}, passedCount={passedCount}, totalReceivedMsgLength={totalReceivedMsgLength}");
-            passedCount++;
-            totalReceivedMsgLength += actual.Content.Length;
-        }
-    }
-
-    Log.Print("서버 종료 시작");
-
-    for (int i = 0; i < count; i++)
-    {
-        clients[i].Stop();
-    }
-}
-
 
 async Task RunReliableKpClient(string address, int port)
 {
@@ -115,6 +62,7 @@ async Task RunReliableKpClient(string address, int port)
 async Task KpClientTest(string address, int port)
 {
     Log.PrintLevel = LogLevel.ERROR;
+    Log.Print("테스트 시작", LogLevel.RETURN);
 
     string input = "가나다", expected = "가나다";
 
@@ -151,8 +99,9 @@ async Task KpClientTest(string address, int port)
     }
 
     Log.Print("메시지 처리 대기중");
-    // 메시지 처리 대기
     await Task.Delay(2000);
+
+    Log.Print("테스트 종료 (부정확)", LogLevel.RETURN);
 
     for (int i = 0; i < count; i++)
     {
@@ -163,9 +112,12 @@ async Task KpClientTest(string address, int port)
 
 async Task KpClientAsyncTest(string address, int port)
 {
+    Log.PrintLevel = LogLevel.ERROR;
+    Log.Print("테스트 시작", LogLevel.RETURN);
+
     string input = "가나다", expected = "가나다";
 
-    int count = 100;
+    int count = 1000;
     List<ReliableMessageClient> clients = new List<ReliableMessageClient>();
 
     for (int i = 0; i < count; i++)
@@ -206,6 +158,8 @@ async Task KpClientAsyncTest(string address, int port)
 
     Log.Print("메시지 처리 대기중");
     await Task.WhenAll(tasks);
+
+    Log.Print("테스트 종료", LogLevel.RETURN);
 
     for (int i = 0; i < count; i++)
     {
