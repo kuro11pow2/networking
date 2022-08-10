@@ -2,8 +2,6 @@
 using Server;
 using Common;
 
-int port = 12345;
-
 //Log.PrintLevel = LogLevel.WARN;
 
 Log.PrintHeader();

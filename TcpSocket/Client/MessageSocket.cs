@@ -108,32 +108,13 @@ namespace Client
 
         private async Task ReadStreamAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
         {
-            int receivedMessageBytesLength = 0;
+            int receivedBytes = await Stream.ReadAsync(buffer, offset, count, cancellationToken);
 
-            while (true)
+            if (receivedBytes == 0)
             {
-                var mem = new Memory<byte>(buffer, offset + receivedMessageBytesLength, count - receivedMessageBytesLength);
-                int currentReceived = await Stream.ReadAsync(mem, cancellationToken);
-                receivedMessageBytesLength += currentReceived;
-
-                if (currentReceived == 0)
-                {
-                    string ex = "0 byte 수신하여 종료";
-                    Log.Print(ex, LogLevel.INFO);
-                    throw new IOException(ex);
-                }
-                if (receivedMessageBytesLength > count)
-                {
-                    string ex = "받기로 한 것보다 많은 메시지 바이트를 수신함";
-                    Log.Print(ex, LogLevel.WARN);
-                    throw new IOException(ex);
-                }
-                if (receivedMessageBytesLength < count)
-                {
-                    continue;
-                }
-
-                break;
+                string ex = "0 byte 수신하여 종료";
+                Log.Print(ex, LogLevel.INFO);
+                throw new IOException(ex);
             }
         }
 

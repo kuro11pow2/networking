@@ -90,7 +90,7 @@ namespace Client
                 {
                     string exs1 = "수신한 데이터가 ReliableMessage가 아님";
                     Log.Print(exs1, LogLevel.ERROR, context: $"{nameof(ReliableMessageSocket)}{Id}-{nameof(ReceiveAsync)}");
-                    throw new Exception(exs1);
+                    throw new Exception(exs1, ex);
                 }
 
                 using (await _mutex.LockAsync())

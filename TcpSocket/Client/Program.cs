@@ -7,17 +7,18 @@ using Common;
 Log.PrintHeader();
 Log.Print("시작", LogLevel.RETURN);
 
-string address = "192.168.0.53";
+string address = "127.0.0.1";
 int port = 7000;
 
-Log.PrintLevel = LogLevel.ERROR;
 
-await KpClientTest(address, port);
+await RunReliableKpClient(address, port);
 
 Log.Print("끝", LogLevel.RETURN);
 
 async Task RemoteServerTest()
 {
+    Log.PrintLevel = LogLevel.ERROR;
+
     string address = "127.0.0.1";
     int port = 12345;
 
@@ -113,9 +114,11 @@ async Task RunReliableKpClient(string address, int port)
 
 async Task KpClientTest(string address, int port)
 {
+    Log.PrintLevel = LogLevel.ERROR;
+
     string input = "가나다", expected = "가나다";
 
-    int count = 100;
+    int count = 1000;
     List<ReliableMessageClient> sockets = new List<ReliableMessageClient>();
 
     for (int i = 0; i < count; i++)
