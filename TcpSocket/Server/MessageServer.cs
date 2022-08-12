@@ -26,9 +26,9 @@ namespace Server
         private IPEndPoint _ipEndPoint;
         protected ConcurrentDictionary<int, MessageSocket> _kpSocks;
         private TcpServerState _state;
-        private int _port;
+        private readonly int _port;
 
-        private readonly AsyncLock _mutex = new AsyncLock();
+        private readonly AsyncLock _mutex = new();
         private int _accSocketCount;
 
         public int ClientCount { get { return _kpSocks.Count; } }
@@ -169,8 +169,7 @@ namespace Server
         {
             bool res;
             int cid = socket.Id;
-            MessageSocket? removed;
-            res = _kpSocks.TryRemove(cid, out removed);
+            res = _kpSocks.TryRemove(cid, out MessageSocket? removed);
 
             if (res)
                 Log.Print($"제거됨 {socket.Id}", context: $"{nameof(MessageServer)}-{nameof(RemoveSocket)}");
@@ -187,7 +186,7 @@ namespace Server
         {
             while (_state == TcpServerState.STARTED)
             {
-                Log.Print(Info(), LogLevel.RETURN, $"{nameof(ReliableMessageServer)} monitor");
+                Log.Print(Info(), LogLevel.RETURN, $"server monitor");
                 await Task.Delay(delay);
             }
         }

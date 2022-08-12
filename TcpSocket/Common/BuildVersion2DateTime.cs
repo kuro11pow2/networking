@@ -14,7 +14,8 @@ namespace Common
     /// </summary>
     public static class BuildVersion2DateTime
     {
-        public static System.DateTime Get(System.Version? version=null)
+        [Obsolete]
+        public static DateTime Get()
         {
             // 주.부.빌드.수정
             // 주 버전    Major Number
@@ -22,16 +23,14 @@ namespace Common
             // 빌드 번호  Build Number
             // 수정 버전  Revision NUmber
 
-            //매개 변수가 없는 경우
+            Version? version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             if (version == null)
-                version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            if (version == null)
-                throw new NullReferenceException("버전 객체가 null입니다");
+                throw new Exception("version == null");
 
             //세번째 값(Build Number)은 2000년 1월 1일부터
             //Build된 날짜까지의 총 일(Days) 수 이다.
             int day = version.Build;
-            System.DateTime dtBuild = (new System.DateTime(2000, 1, 1)).AddDays(day);
+            DateTime dtBuild = (new DateTime(2000, 1, 1)).AddDays(day);
 
             //네번째 값(Revision NUmber)은 자정으로부터 Build된
             //시간까지의 지나간 초(Second) 값 이다.
@@ -39,10 +38,9 @@ namespace Common
             intSeconds *= 2;
             dtBuild = dtBuild.AddSeconds(intSeconds);
 
-
             //시차 보정
-            System.Globalization.DaylightTime daylingTime = System.TimeZone.CurrentTimeZone.GetDaylightChanges(dtBuild.Year);
-            if (System.TimeZone.IsDaylightSavingTime(dtBuild, daylingTime))
+            System.Globalization.DaylightTime daylingTime = TimeZone.CurrentTimeZone.GetDaylightChanges(dtBuild.Year);
+            if (TimeZone.IsDaylightSavingTime(dtBuild, daylingTime))
                 dtBuild = dtBuild.Add(daylingTime.Delta);
 
             return dtBuild;

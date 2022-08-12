@@ -3,9 +3,11 @@
 
 namespace Client
 {
+    using HEADER_TYPE = UInt16;
+
     public class Message
     {
-        public const int HEADER_BYTES_LENGTH = sizeof(int);
+        public const int HEADER_BYTES_LENGTH = sizeof(HEADER_TYPE);
 
         private readonly string _msg;
         private readonly ReadOnlyMemory<byte> _fullbytes;
@@ -20,14 +22,13 @@ namespace Client
 
         public Message(string msg, byte[] msgBytes)
         {
-            var fullBytesLength = sizeof(int) + (int)msgBytes.Length;
+            var fullBytesLength = HEADER_BYTES_LENGTH + msgBytes.Length;
             var tmp = new byte[fullBytesLength];
 
-            int dataBytesLength = (int)fullBytesLength - HEADER_BYTES_LENGTH;
-            var headerBytes = GetHeaderBytes(dataBytesLength);
+            var headerBytes = GetHeaderBytes(msgBytes.Length);
 
             Buffer.BlockCopy(headerBytes, 0, tmp, 0, HEADER_BYTES_LENGTH);
-            Buffer.BlockCopy(msgBytes, 0, tmp, HEADER_BYTES_LENGTH, dataBytesLength);
+            Buffer.BlockCopy(msgBytes, 0, tmp, HEADER_BYTES_LENGTH, msgBytes.Length);
 
             _msg = msg;
             _fullbytes = tmp;

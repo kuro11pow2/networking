@@ -14,31 +14,28 @@ namespace Client
     public class ReliableMessageSocket : MessageSocket
     {
         private readonly ConcurrentDictionary<int, bool> _receiveWaitMids = new();
-        private Dictionary<MessageType, int> _sendMsgTypeCount, _receiveMsgTypeCount;
-        private int _sendMsgCount, _receiveMsgCount;
 
-
-        public int SendMsgCount { get { return _sendMsgCount; } }
-        public int ReceiveMsgCount { get { return _receiveMsgCount; } }
-        public Dictionary<MessageType, int> SendMsgTypeCount { get { return _sendMsgTypeCount; } }
-        public Dictionary<MessageType, int> ReceiveMsgTypeCount { get { return _receiveMsgTypeCount; } }
+        public int SendMsgCount { get; private set; }
+        public int ReceiveMsgCount { get; private set; }
+        public Dictionary<MessageType, int> SendMsgTypeCount { get; }
+        public Dictionary<MessageType, int> ReceiveMsgTypeCount { get; }
 
         private readonly AsyncLock _mutex = new();
 
         public ReliableMessageSocket(Socket connectedSocket) : base(connectedSocket)
         {
-            _receiveMsgTypeCount = new Dictionary<MessageType, int>();
-            _sendMsgTypeCount = new Dictionary<MessageType, int>();
-            _sendMsgCount = 0;
-            _receiveMsgCount = 0;
+            ReceiveMsgTypeCount = new Dictionary<MessageType, int>();
+            SendMsgTypeCount = new Dictionary<MessageType, int>();
+            SendMsgCount = 0;
+            ReceiveMsgCount = 0;
         }
 
         public ReliableMessageSocket(string address, int port) : base(address, port)
         {
-            _receiveMsgTypeCount = new Dictionary<MessageType, int>();
-            _sendMsgTypeCount = new Dictionary<MessageType, int>();
-            _sendMsgCount = 0;
-            _receiveMsgCount = 0;
+            ReceiveMsgTypeCount = new Dictionary<MessageType, int>();
+            SendMsgTypeCount = new Dictionary<MessageType, int>();
+            SendMsgCount = 0;
+            ReceiveMsgCount = 0;
         }
 
         public override async Task StartAsync()
@@ -57,8 +54,8 @@ namespace Client
 
             using (await _mutex.LockAsync())
             {
-                AddDict(_sendMsgTypeCount, type, 1);
-                mid = _sendMsgCount++;
+                AddDict(SendMsgTypeCount, type, 1);
+                mid = SendMsgCount++;
             }
 
             ReliableMessage msg = new(s, type, mid);
@@ -78,7 +75,7 @@ namespace Client
 
         public override async Task<Message> ReceiveAsync()
         {
-            while (_state == KpSocketState.CONNECTED)
+            while (_state == MessageSocketState.CONNECTED)
             {
                 Message msg = await base.ReceiveAsync();
                 ReliableMessage rMsg;
@@ -95,8 +92,8 @@ namespace Client
 
                 using (await _mutex.LockAsync())
                 {
-                    AddDict(_receiveMsgTypeCount, rMsg.Type, 1);
-                    _receiveMsgCount++;
+                    AddDict(ReceiveMsgTypeCount, rMsg.Type, 1);
+                    ReceiveMsgCount++;
                 }
 
                 Log.Print($"{rMsg}", LogLevel.INFO, context: $"{nameof(ReliableMessageSocket)}{Id}-{nameof(ReceiveAsync)}");
@@ -106,7 +103,7 @@ namespace Client
                     return rMsg;
             }
 
-            string exs2 = "_state != KpSocketState.CONNECTED";
+            string exs2 = "_state != MessageSocketState.CONNECTED";
             Log.Print(exs2, LogLevel.ERROR, context: $"{nameof(ReliableMessageSocket)}{Id}-{nameof(ReceiveAsync)}");
             throw new Exception(exs2);
         }

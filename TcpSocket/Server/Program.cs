@@ -34,7 +34,7 @@ Log.Print("끝", LogLevel.RETURN);
 
 async Task KpServerTest(int port)
 {
-    MessageServer ks = new MessageServer(port);
+    MessageServer ks = new(port);
 
     ks.Start();
 
@@ -47,5 +47,5 @@ async Task ReliableKpServerTest(int port)
 
     ks.Start();
 
-    await ks.StartMonitorAsync(10000);
+    await ks.StartMonitorAsync(5000);
 }

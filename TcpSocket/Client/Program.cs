@@ -7,11 +7,12 @@ using Common;
 Log.PrintHeader();
 Log.Print("시작", LogLevel.RETURN);
 
-string address = "192.168.0.53";
+//string address = "192.168.0.53";
+string address = "127.0.0.1";
 int port = 7000;
 
 
-await KpClientAsyncTest(address, port);
+await RunReliableKpClient(address, port);
 
 Log.Print("끝", LogLevel.RETURN);
 
